@@ -1,0 +1,53 @@
+name: "Padok FourKeys Actions"
+description: "Measure the frequency of deployments and changes to production in your GitHub repositories"
+author: "padok-team"
+inputs:
+  metadatas:
+    description: "Metadatas to send to Padok FourKeys"
+    default: "{}"
+runs:
+  using: "composite"
+  steps:
+    - name: "Checkout"
+      uses: "actions/checkout@v3"
+      with:
+        fetch-depth: 0
+
+    - id: "auth"
+      name: "Authenticate to Google Cloud"
+      uses: "google-github-actions/auth@v1.0.0"
+      with:
+        token_format: "id_token"
+        workload_identity_provider: "projects/1087046316247/locations/global/workloadIdentityPools/dora-clients/providers/dora-clients-provider"
+        service_account: "${{ github.repository_owner }}@padok-baywatch.iam.gserviceaccount.com"
+        id_token_include_email: true
+        id_token_audience: "https://pubsub.googleapis.com/google.pubsub.v1.Publisher"
+
+    - name: Install gcloud CLI
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        version: ">=444.0.0"
+
+    - if: ${{ inputs.event_type == 'changes' }}
+      shell: bash
+      run: |
+        TIMESTAMP=$(date +'%Y-%m-%dT%H:%M:%S')
+        COMMIT_ID_LIST=$(echo '${{ toJson(github.event) }}' | jq '.commits[].id' | tr '\n' ',')
+        COMMITS_DATA=$(echo '${{ toJson(github.event) }}' | jq '[.commits[] | {id: .id, timestamp: .timestamp}]')
+
+        metadatas=$(echo "${{ toJSON(inputs.metadatas) }}")
+
+        echo "$COMMITS_DATA" | jq -r '.[] | @json' | while read -r commit; do
+          COMMIT_ID=$(echo "$commit" | jq -r '.id')
+          COMMIT_TIMESTAMP=$(echo "$commit" | jq -r '.timestamp')
+
+          gcloud pubsub topics publish events --message "{\"event_type\": \"change\", \"change_id\": \"$COMMIT_ID\", \"time_created\": \"$COMMIT_TIMESTAMP\", \"source\": \"${{ github.repository }}\", \"metadata\": $metadatas}" \
+              --attribute "token=${{ steps.auth.outputs.id_token }}" \
+              --project padok-baywatch \
+              || exit 1
+        done
+
+        gcloud pubsub topics publish events --message "{\"event_type\": \"deployment\", \"deployment_id\": \"${{ github.sha }}\", \"time_created\": \"$TIMESTAMP\", \"commit_list\": [${COMMIT_ID_LIST::-1}], \"source\": \"${{ github.repository }}\", \"metadata\": $metadatas}" \
+            --attribute "token=${{ steps.auth.outputs.id_token }}" \
+            --project padok-baywatch \
+            || exit 1
