@@ -27,3 +27,7 @@ jobs:
     - name: Publish Data to Padok Baywatch Fourkeys
       uses: padok-team/baywatch-fourkeys-action@main
 ```
+
+## License
+
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
