@@ -21,11 +21,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
     - name: Publish Data to Padok Baywatch Fourkeys
-      uses: padok-team/baywatch-fourkeys-action@main
+      uses: padok-team/baywatch-fourkeys-action@v1
 ```
 
 ## License
