@@ -28,8 +28,7 @@ runs:
       with:
         version: ">=444.0.0"
 
-    - if: ${{ inputs.event_type == 'changes' }}
-      shell: bash
+    - shell: bash
       run: |
         TIMESTAMP=$(date +'%Y-%m-%dT%H:%M:%S')
         COMMIT_ID_LIST=$(echo '${{ toJson(github.event) }}' | jq '.commits[].id' | tr '\n' ',')
